@@ -3,16 +3,18 @@ package com.lifeos.model;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 
-import com.lifeos.model.Card;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter 
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -25,18 +27,14 @@ public class User {
     @Column(unique = true, nullable = false)
     private String username;
 
+    @JsonIgnore 
     @Column(nullable = false)
     private String password;
 
     @Enumerated(EnumType.STRING)
-    private Role role; // ADMIN, GUEST
-
-
+    private Role role;
+    
+    @JsonIgnore 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<Card> cards;
-}
-
-
-enum Role {
-    ADMIN, GUEST
 }

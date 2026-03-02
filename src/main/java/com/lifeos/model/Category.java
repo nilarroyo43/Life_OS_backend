@@ -1,11 +1,16 @@
 package com.lifeos.model;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "categories")
-@Data
+@Getter 
+@Setter
 public class Category {
 
     @Id
@@ -17,13 +22,19 @@ public class Category {
 
     private String description;
 
-    // Configuración: ¿Las tarjetas de aquí trackean tiempo?
     private boolean hasTimeTracking;
 
-    // Configuración visual
     private String color;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
+    @ManyToMany
+    @JoinTable(
+        name = "category_collaborators",
+        joinColumns = @JoinColumn(name = "category_id"),
+        inverseJoinColumns = @JoinColumn(name = "user_id")
+    )
+    private Set<User> collaborators = new HashSet<>();
 }
