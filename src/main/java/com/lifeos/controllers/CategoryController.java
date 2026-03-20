@@ -64,6 +64,27 @@ public class CategoryController {
         return ResponseEntity.ok(myCategories);
     }
 
+    // El endpoint para LEER UNA SOLA CATEGORÍA por su ID
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getCategoryById(@PathVariable("id") Long id) {
+        
+        // 1. Sacamos quién es el usuario actual (la muralla)
+        User currentUser = userService.getCurrentUser();
+
+        // 2. Buscamos la categoría concreta en la BBDD por su ID
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+
+        // 3. SEGURIDAD: ¿Es este usuario el dueño de la categoría?
+        if (!category.getOwner().getId().equals(currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Error: No tienes permiso para ver esta categoría");
+        }
+
+        // 4. Si todo va bien, devolvemos la categoría en formato JSON
+        return ResponseEntity.ok(category);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<?> updateCategory(@PathVariable("id") Long id, @RequestBody CategoryRequest request){
 

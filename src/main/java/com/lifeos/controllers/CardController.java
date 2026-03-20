@@ -2,14 +2,12 @@ package com.lifeos.controllers;
 
 import com.lifeos.model.Card;
 import com.lifeos.model.CardStatus;
-import com.lifeos.model.Category;
+import com.lifeos.model.Project;
 import com.lifeos.model.User;
 import com.lifeos.payload.request.CardRequest;
 import com.lifeos.repository.CardRepository;
-import com.lifeos.repository.CategoryRepository;
-import com.lifeos.repository.UserRepository;
+import com.lifeos.repository.ProjectRepository;
 import com.lifeos.service.UserService;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,10 +24,7 @@ public class CardController {
     CardRepository cardRepository;
 
     @Autowired
-    CategoryRepository categoryRepository;
-
-    @Autowired
-    UserRepository userRepository;
+    ProjectRepository projectRepository; // Cambiado CategoryRepository por ProjectRepository
 
     @Autowired
     UserService userService;
@@ -38,14 +33,13 @@ public class CardController {
     public ResponseEntity<?> createCard(@RequestBody CardRequest request) {
         User currentUser = userService.getCurrentUser();
 
-        // Buscamos la categoría donde quiere meter la tarjeta
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+        Project project = projectRepository.findById(request.getProjectId())
+                .orElseThrow(() -> new RuntimeException("Proyecto no encontrado"));
 
-        // Seguridad: ¿Es suya la categoría?
-        if (!category.getOwner().getId().equals(currentUser.getId())) {
+        // Seguridad verificando la categoría a través del proyecto
+        if (!project.getCategory().getOwner().getId().equals(currentUser.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("No puedes añadir tarjetas a una categoría que no es tuya");
+                    .body("No puedes añadir tarjetas a un proyecto que no es tuyo");
         }
 
         Card card = new Card();
@@ -54,29 +48,31 @@ public class CardController {
         card.setStatus(CardStatus.valueOf(request.getStatus().name()));
         card.setStartDate(request.getStartDate());
         card.setEndDate(request.getEndDate());
+        card.setProject(project); // Setear Proyecto en vez de Categoría
+        card.setUser(currentUser); 
 
-        card.setCategory(category);
-        card.setUser(currentUser); // El dueño de la tarjeta
-
-        Card savedCard = cardRepository.save(card);
-        return ResponseEntity.ok(savedCard);
+        return ResponseEntity.ok(cardRepository.save(card));
     }
 
-    // URL: /api/cards/category/1
-    @GetMapping("/category/{categoryId}")
-    public ResponseEntity<?> getCardsByCategory(@PathVariable("categoryId") Long categoryId) {
+    // URL cambiada de /category/id a /project/id
+    @GetMapping("/project/{projectId}")
+    public ResponseEntity<?> getCardsByProject(@PathVariable("projectId") Long projectId) {
         User currentUser = userService.getCurrentUser();
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Proyecto no encontrado"));
 
-        // Seguridad
-        if (!category.getOwner().getId().equals(currentUser.getId())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes acceso a esta categoría");
+        if (!project.getCategory().getOwner().getId().equals(currentUser.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("No tienes acceso");
         }
 
-        List<Card> cards = cardRepository.findByCategoryId(categoryId);
+        List<Card> cards = cardRepository.findByProjectId(projectId);
         return ResponseEntity.ok(cards);
     }
+
+    // El PUT (updateCard) y DELETE (deleteCard) se mantienen idénticos a como los tenías, 
+    // porque solo modifican o borran la propia Card sin cambiarla de proyecto.
+    // (Pega aquí tus métodos PUT y DELETE de tu antiguo CardController).
+
 
     @PutMapping("/{id}")
     public ResponseEntity<?> updateCard(@PathVariable("id") Long id, @RequestBody CardRequest request) {

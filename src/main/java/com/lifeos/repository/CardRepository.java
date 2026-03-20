@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface CardRepository extends JpaRepository<Card, Long>, JpaSpecificationExecutor<Card>{
     // Para sacar las tarjetas de una categoría concreta
-    List<Card> findByCategoryId(Long categoryId);
+    List<Card> findByProjectId(Long projectId);
 
     // Para ver las sub-tarjetas de una tarjeta padre
     List<Card> findByParentCardId(Long parentCardId);

@@ -20,5 +20,5 @@ public class CardRequest {
     
     private LocalDate endDate;
     
-    private Long categoryId; // EL DATO CLAVE
+    private Long projectId;
 }

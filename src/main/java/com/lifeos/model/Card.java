@@ -39,8 +39,8 @@ public class Card {
     private User user;
 
     @ManyToOne
-    @JoinColumn(name = "category_id", nullable = false)
-    private Category category;
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
 
     // --- RECURSIVIDAD (Padre/Hijo) ---
     @JsonIgnore 
