@@ -1,6 +1,7 @@
 package com.lifeos.controllers;
 
 import java.util.List;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,6 @@ import com.lifeos.service.UserService;
 @RequestMapping("/api/categories")
 public class CategoryController {
 
-    // 1. ¿Qué dos repositorios necesitas inyectar aquí con @Autowired?
     @Autowired
     UserRepository userRepository;
 
@@ -27,9 +27,17 @@ public class CategoryController {
     @Autowired
     CategoryRepository categoryRepository;
 
-    // 2. El endpoint para CREAR (POST)
+    // ── HELPER DE SEGURIDAD ──────────────────────────────────────────────────────
+    // Devuelve true si el usuario es dueño O colaborador de la categoría.
+    // Esto corrige la vulnerabilidad IDOR que solo comprobaba al owner.
+    private boolean hasAccess(Category category, User user) {
+        return category.getOwner().getId().equals(user.getId()) ||
+               category.getCollaborators().stream().anyMatch(c -> c.getId().equals(user.getId()));
+    }
+
+    // ── POST /api/categories — Crear categoría ───────────────────────────────────
     @PostMapping
-    public ResponseEntity<?> createCategory(@RequestBody CategoryRequest request) {
+    public ResponseEntity<?> createCategory(@Valid @RequestBody CategoryRequest request) {
 
         // 1. Sacamos el username del Token (la muralla)
         User owner = userService.getCurrentUser();
@@ -64,75 +72,60 @@ public class CategoryController {
         return ResponseEntity.ok(myCategories);
     }
 
-    // El endpoint para LEER UNA SOLA CATEGORÍA por su ID
+    // ── GET /api/categories/{id} ─────────────────────────────────────────────────
     @GetMapping("/{id}")
     public ResponseEntity<?> getCategoryById(@PathVariable("id") Long id) {
-        
-        // 1. Sacamos quién es el usuario actual (la muralla)
         User currentUser = userService.getCurrentUser();
 
-        // 2. Buscamos la categoría concreta en la BBDD por su ID
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-        // 3. SEGURIDAD: ¿Es este usuario el dueño de la categoría?
-        if (!category.getOwner().getId().equals(currentUser.getId())) {
+        // IDOR fix: owner Y colaboradores pueden ver la categoría
+        if (!hasAccess(category, currentUser)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("Error: No tienes permiso para ver esta categoría");
         }
 
-        // 4. Si todo va bien, devolvemos la categoría en formato JSON
         return ResponseEntity.ok(category);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateCategory(@PathVariable("id") Long id, @RequestBody CategoryRequest request){
-
-        // 1. Sacamos quién es el usuario que hace la petición
+    public ResponseEntity<?> updateCategory(@PathVariable("id") Long id, @Valid @RequestBody CategoryRequest request) {
         User currentUser = userService.getCurrentUser();
 
-        // 2. Buscamos la categoría concreta en la BBDD por su ID
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-        // 3. LA MURALLA DE SEGURIDAD: ¿Es este usuario el dueño de la categoría?
-        if (!category.getOwner().getId().equals(currentUser.getId())) {
+        // IDOR fix: owner Y colaboradores pueden editar
+        if (!hasAccess(category, currentUser)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body("Error: No tienes permiso para editar esta categoría");
         }
 
-        // 4. Si ha pasado la seguridad, actualizamos los datos
         category.setName(request.getName());
         category.setDescription(request.getDescription());
         category.setHasTimeTracking(request.isHasTimeTracking());
         category.setColor(request.getColor());
 
-        // 5. Guardamos y devolvemos la categoría actualizada
         Category updatedCategory = categoryRepository.save(category);
         return ResponseEntity.ok(updatedCategory);
     }
 
-    // La URL será /api/categories/{id}
+    // ── DELETE /api/categories/{id} ──────────────────────────────────────────────
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteCategory(@PathVariable("id") Long id) {
-
-        // 1. Sacamos quién es el usuario actual
         User currentUser = userService.getCurrentUser();
 
-        // 2. Buscamos la categoría en la BBDD
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Categoría no encontrada"));
 
-        // 3. LA MURALLA DE SEGURIDAD: ¿Es el dueño?
+        // Solo el owner puede eliminar el workspace completo
         if (!category.getOwner().getId().equals(currentUser.getId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body("Error: No tienes permiso para borrar esta categoría");
+                    .body("Error: Solo el propietario puede eliminar esta categoría");
         }
 
-        // 4. Si es el dueño, la borramos
         categoryRepository.delete(category);
-
-        // 5. Devolvemos un mensaje de éxito
         return ResponseEntity.ok("Categoría eliminada correctamente");
     }
 }

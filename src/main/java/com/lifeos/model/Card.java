@@ -5,13 +5,14 @@ import lombok.Getter;
 import lombok.Setter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "cards")
-@Getter 
+@Getter
 @Setter
 public class Card {
 
@@ -22,12 +23,11 @@ public class Card {
     @Column(nullable = false)
     private String title;
 
-    @Column(columnDefinition = "TEXT") 
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    
     @Enumerated(EnumType.STRING)
-    private CardStatus status; 
+    private CardStatus status;
 
     // --- TEMPORALIDAD AUTOMÁTICA ---
     private LocalDate startDate;
@@ -43,24 +43,25 @@ public class Card {
     private Project project;
 
     // --- RECURSIVIDAD (Padre/Hijo) ---
-    @JsonIgnore 
+    // @JsonIgnore en parentCard evita el bucle Card -> parentCard -> subCards -> Card...
+    @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "parent_card_id")
     private Card parentCard;
 
+    // @JsonIgnore en subCards evita la serialización recursiva infinita
+    @JsonIgnore
     @OneToMany(mappedBy = "parentCard", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Card> subCards = new ArrayList<>();
 
-    // --- TIPOS DINÁMICOS ---
-    @JsonIgnore 
-    @OneToMany(mappedBy = "definedInCard", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CardType> definedTypes = new ArrayList<>();
+    @ManyToMany
+    @JoinTable(
+        name = "card_tags",
+        joinColumns = @JoinColumn(name = "card_id"),
+        inverseJoinColumns = @JoinColumn(name = "tag_id")
+    )
+    private Set<Tag> tags = new HashSet<>();
 
-    @ManyToOne
-    @JoinColumn(name = "selected_option_id")
-    private CardType selectedType;
-
-    // --- LIFECYCLE HOOKS ---
     @PrePersist
     public void prePersist() {
         if (this.status == null) this.status = CardStatus.PENDING;

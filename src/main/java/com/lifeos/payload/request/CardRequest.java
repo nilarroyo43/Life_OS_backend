@@ -8,17 +8,19 @@ import com.lifeos.model.CardStatus;
 
 @Data
 public class CardRequest {
-    
+
     @NotBlank(message = "El título es obligatorio")
     private String title;
-    
+
     private String description;
-    
+
     private CardStatus status; // PENDING, IN_PROGRESS, DONE, ARCHIVED
-    
+
     private LocalDate startDate;
-    
+
     private LocalDate endDate;
-    
+
     private Long projectId;
+
+    private Long parentCardId;
 }
